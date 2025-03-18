@@ -8,7 +8,7 @@ export default function Index() {
       style={styles.container}
     >
       <Text style={styles.title}>Edit app/index.tsx to edit this screen.</Text>
-      <Image />
+      <Image cachePolicy={""} source={{uri:"https://pixabay.com/images/search/online/"}}/>
     </View>
 
   );
