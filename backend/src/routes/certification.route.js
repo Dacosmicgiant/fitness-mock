@@ -8,7 +8,7 @@ import {
   enrollInCertification,
   getEnrolledCertifications
 } from '../controllers/certification.controller.js';
-import { protectRoute, admin } from '../middleware/auth.middleware.js';
+import { protectRoute, protectAdminRoutes } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -21,8 +21,8 @@ router.post('/:id/enroll', protectRoute, enrollInCertification);
 router.get('/user/enrolled', protectRoute, getEnrolledCertifications);
 
 // Admin routes
-router.post('/', protectRoute, admin, createCertification);
-router.put('/:id', protectRoute, admin, updateCertification);
-router.delete('/:id', protectRoute, admin, deleteCertification);
+router.post('/', protectRoute, protectAdminRoutes, createCertification);
+router.put('/:id', protectRoute, protectAdminRoutes, updateCertification);
+router.delete('/:id', protectRoute, protectAdminRoutes, deleteCertification);
 
 export default router;

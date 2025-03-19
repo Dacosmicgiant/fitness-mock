@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 
 // Middleware to protect routes
-
 export const protectRoute = async (req, res, next) => {
   try {
     let token = null;
@@ -45,6 +44,16 @@ export const protectRoute = async (req, res, next) => {
   }
 };
 
+// Middleware to restrict access to admin users
+export const protectAdminRoutes = (req, res, next) => {
+  if (req.user && req.user.isAdmin) {
+    console.log(`[${new Date().toISOString()}] [Auth] Admin access granted to: ${req.user.email}`);
+    next();
+  } else {
+    console.warn(`[${new Date().toISOString()}] [Auth] Admin access denied to: ${req.user?.email || 'unknown'}`);
+    res.status(403).json({ message: 'Not authorized as an admin' });
+  }
+};
 
 // Middleware to check subscription status
 export const checkSubscription = async (req, res, next) => {

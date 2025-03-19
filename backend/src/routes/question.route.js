@@ -8,16 +8,16 @@ import {
   deleteQuestion,
   getQuestionsForTest
 } from '../controllers/question.controller.js';
-import { protectRoute, admin } from '../middleware/auth.middleware.js';
+import { protectRoute, protectAdminRoutes } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // Admin routes
-router.get('/', protectRoute, admin, getAllQuestions);
-router.get('/:id', protectRoute, admin, getQuestionById);
-router.post('/', protectRoute, admin, createQuestion);
-router.put('/:id', protectRoute, admin, updateQuestion);
-router.delete('/:id', protectRoute, admin, deleteQuestion);
+router.get('/', protectRoute, protectAdminRoutes, getAllQuestions);
+router.get('/:id', protectRoute, protectAdminRoutes, getQuestionById);
+router.post('/', protectRoute, protectAdminRoutes, createQuestion);
+router.put('/:id', protectRoute, protectAdminRoutes, updateQuestion);
+router.delete('/:id', protectRoute, protectAdminRoutes, deleteQuestion);
 
 // protected routes (requires authentication)
 router.get('/module/:moduleId', protectRoute, getQuestionsByModule);

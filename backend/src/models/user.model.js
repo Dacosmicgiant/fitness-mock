@@ -17,6 +17,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
   subscriptionStatus: {
     type: String,
     enum: ['free', 'premium'],
@@ -57,6 +61,6 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', UserSchema);  // ✅ Fix applied
+const User = mongoose.model('User', UserSchema);
 
 export default User;

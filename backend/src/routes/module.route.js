@@ -7,7 +7,7 @@ import {
   updateModule, 
   deleteModule 
 } from '../controllers/module.controller.js';
-import { protectRoute, admin } from '../middleware/auth.middleware.js';
+import { protectRoute, protectAdminRoutes } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -17,8 +17,8 @@ router.get('/:id', getModuleById);
 router.get('/certification/:certificationId', getModulesByCertification);
 
 // Admin routes
-router.post('/', protectRoute, admin, createModule);
-router.put('/:id', protectRoute, admin, updateModule);
-router.delete('/:id', protectRoute, admin, deleteModule);
+router.post('/', protectRoute, protectAdminRoutes, createModule);
+router.put('/:id', protectRoute, protectAdminRoutes, updateModule);
+router.delete('/:id', protectRoute, protectAdminRoutes, deleteModule);
 
 export default router;
