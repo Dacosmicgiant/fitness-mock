@@ -28,13 +28,14 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/certifications', certificationRoutes);
-app.use('/api/modules', moduleRoutes);
-app.use('/api/tests', testRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
+// app.use('/api/certifications', certificationRoutes);
+// app.use('/api/modules', moduleRoutes);
+// app.use('/api/tests', testRoutes);
+// app.use('/api/subscriptions', subscriptionRoutes);
 
 // Default route
 app.get('/', (req, res) => {
