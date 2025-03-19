@@ -11,11 +11,10 @@ import fs from 'fs';
 
 // Route imports
 import authRoutes from './routes/auth.route.js';
-
-// import certificationRoutes from './routes/certificationRoutes.js';
-// import moduleRoutes from './routes/moduleRoutes.js';
-// import testRoutes from './routes/testRoutes.js';
-// import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import certificationRoutes from './routes/certificationRoutes.js';
+import moduleRoutes from './routes/moduleRoutes.js';
+import testRoutes from './routes/testRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,10 +31,10 @@ app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
-// app.use('/api/certifications', certificationRoutes);
-// app.use('/api/modules', moduleRoutes);
-// app.use('/api/tests', testRoutes);
-// app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/certifications', certificationRoutes);
+app.use('/api/modules', moduleRoutes);
+app.use('/api/tests', testRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Default route
 app.get('/', (req, res) => {
