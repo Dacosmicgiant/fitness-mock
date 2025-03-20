@@ -7,7 +7,7 @@ import User from './models/user.model.js';
 dotenv.config();
 
 // Connect to MongoDB
-mongoose.connect("mongodb+srv://vedantvanpro:GF0oY7obzc2qTgSH@cluster0.unxz3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+mongoose.connect(`${process.env.MONGO_URI}`)
   .then(() => console.log('MongoDB connected'))
   .catch(err => {
     console.error(`Error connecting to MongoDB: ${err.message}`);
@@ -16,9 +16,9 @@ mongoose.connect("mongodb+srv://vedantvanpro:GF0oY7obzc2qTgSH@cluster0.unxz3.mon
 
 // Admin user data
 const adminData = {
-  name: 'Vedant Vankar',
-  email: 'vedantvanpro@gmail.com',
-  password: 'Shivoham@21',  // This will be hashed by the pre-save hook
+  name: '',
+  email: '',
+  password: '',  // This will be hashed by the pre-save hook
   isAdmin: true,
   subscriptionStatus: 'premium',
   subscriptionExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),  // 1 year from now

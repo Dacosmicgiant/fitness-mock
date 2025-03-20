@@ -14,20 +14,30 @@
 //   };
   
   // RETRO
-  
-  const COLORS = {
-    primary: "#e17055",
-    textPrimary: "#784e2d",
-    textSecondary: "#a58e7c",
-    textDark: "#50372a",
-    placeholderText: "#767676",
-    background: "#ede1d1",
-    cardBackground: "#faf5eb",
-    inputBackground: "#f7f2ea",
-    border: "#e2d6c1",
-    white: "#ffffff",
-    black: "#000000",
-  };
+  // mobile/constants/colors.js
+// export const Colors = {
+//   primary: '#4361EE',  // A nice blue
+//   secondary: '#3F37C9',
+//   accent: '#4CC9F0',
+//   text: '#333333',
+//   background: '#FFFFFF',
+//   lightGray: '#F0F0F0',
+//   gray: '#CCCCCC',
+//   error: '#FF3B30'
+// };
+  // export const Colors = {
+  //   primary: "#e17055",
+  //   textPrimary: "#784e2d",
+  //   textSecondary: "#a58e7c",
+  //   textDark: "#50372a",
+  //   placeholderText: "#767676",
+  //   background: "#ede1d1",
+  //   cardBackground: "#faf5eb",
+  //   inputBackground: "#f7f2ea",
+  //   border: "#e2d6c1",
+  //   white: "#ffffff",
+  //   black: "#000000",
+  // };
   
   
   // OCEAN
@@ -64,4 +74,15 @@
   };
   */
   
-  export default COLORS;
+  // export default COLORS;
+
+  export default {
+    primary: '#4C68D7',  // You can choose your own brand color
+    secondary: '#2E90FA',
+    white: '#FFFFFF',
+    black: '#000000',
+    gray: '#6B7280',
+    lightGray: '#E5E7EB',
+    error: '#EF4444',
+    success: '#10B981',
+  };
