@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -6,46 +6,64 @@ import {
   TouchableOpacity, 
   Image, 
   SafeAreaView, 
-  ScrollView 
+  ScrollView,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import colors from '../constants/colors';
 import useAuthStore from '../stores/authStore';
+import useCertificationStore from '../stores/certificationStore';
+import EnrolledCertCard from '../components/EnrolledCertCard';
+import StatCard from '../components/StatCard';
 
 const HomeScreen = () => {
   const router = useRouter();
   const { user, logoutUser } = useAuthStore();
+  const { enrolledCertifications, fetchEnrolledCertifications } = useCertificationStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchEnrolledCertifications();
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
     // AuthGuard in _layout.js will automatically redirect to login
   };
 
+  const handleStartQuiz = () => {
+    router.push('/(tabs)/certifications');
+  };
+
+  const handleViewProgress = () => {
+    router.push('/(tabs)/profile')
+  };
+
+  const handleSubscription = () => {
+    router.push('/(tabs)/home/subscription')
+  };
+  
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchEnrolledCertifications();
+    setRefreshing(false);
+  };
+
   const menuItems = [
-    {
-      id: 'study',
-      title: 'Study Materials',
-      icon: 'book-outline',
-      description: 'Access comprehensive study materials for all certifications',
-    },
     {
       id: 'practice',
       title: 'Practice Exams',
       icon: 'create-outline',
       description: 'Test your knowledge with thousands of practice questions',
-    },
-    {
-      id: 'flashcards',
-      title: 'Flashcards',
-      icon: 'albums-outline',
-      description: 'Review key concepts with digital flashcards',
+      onPress: handleStartQuiz
     },
     {
       id: 'progress',
       title: 'My Progress',
       icon: 'bar-chart-outline',
       description: 'Track your study progress and test scores',
+      onPress: handleViewProgress
     },
   ];
 
@@ -68,26 +86,29 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>Ready to ace your certification?</Text>
-          <Text style={styles.bannerText}>
-            Complete daily practice quizzes to improve your exam readiness.
-          </Text>
-          <TouchableOpacity style={styles.bannerButton}>
-            <Text style={styles.bannerButtonText}>Start Daily Quiz</Text>
-          </TouchableOpacity>
-        </View>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      >
 
         <Text style={styles.sectionTitle}>Menu</Text>
         <View style={styles.menuContainer}>
           {menuItems.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.menuItem}>
+            <TouchableOpacity key={item.id} style={styles.menuItem} onPress={item.onPress}>
               <View style={styles.menuIconContainer}>
                 <Ionicons name={item.icon} size={24} color={colors.white} />
               </View>
-              <Text style={styles.menuItemTitle}>{item.title}</Text>
-              <Text style={styles.menuItemDescription}>{item.description}</Text>
+              <View style={styles.menuTextContainer}>
+                <Text style={styles.menuItemTitle}>{item.title}</Text>
+                <Text style={styles.menuItemDescription}>{item.description}</Text>
+              </View>
               <Ionicons 
                 name="chevron-forward" 
                 size={20} 
@@ -98,23 +119,35 @@ const HomeScreen = () => {
           ))}
         </View>
 
-        <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>Your Stats</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Days Studied</Text>
+        {enrolledCertifications.length > 0 ? (
+          <>
+            <View style={styles.enrolledContainer}>
+              <Text style={styles.sectionTitle}>Your Certifications</Text>
+              {enrolledCertifications.map((cert) => (
+                <EnrolledCertCard 
+                  key={cert._id} 
+                  certification={cert} 
+                  onPress={() => router.push(`/certification/${cert._id}`)}
+                />
+              ))}
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>42</Text>
-              <Text style={styles.statLabel}>Quizzes Taken</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>78%</Text>
-              <Text style={styles.statLabel}>Avg. Score</Text>
-            </View>
+          </>
+        ) : (
+          <View style={styles.noEnrollmentContainer}>
+            <Ionicons name="document-outline" size={50} color={colors.lightGray} />
+            <Text style={styles.noEnrollmentText}>
+              You haven't enrolled in any certifications yet
+            </Text>
+            <TouchableOpacity 
+              style={styles.enrollNowButton}
+              onPress={handleStartQuiz}
+            >
+              <Text style={styles.enrollNowButtonText}>Explore Certifications</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        )}
+
+        
       </ScrollView>
     </SafeAreaView>
   );
@@ -211,13 +244,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
-    position: 'relative',
   },
   menuIconContainer: {
     backgroundColor: colors.primary,
     borderRadius: 10,
     padding: 10,
     marginRight: 15,
+  },
+  menuTextContainer: {
+    flex: 1,
   },
   menuItemTitle: {
     fontSize: 16,
@@ -227,11 +262,38 @@ const styles = StyleSheet.create({
   menuItemDescription: {
     fontSize: 13,
     color: colors.gray,
-    width: '65%',
   },
   menuArrow: {
-    position: 'absolute',
-    right: 15,
+    marginLeft: 10,
+  },
+  enrolledContainer: {
+    marginBottom: 25,
+  },
+  noEnrollmentContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.lightGray,
+    borderRadius: 12,
+    padding: 30,
+    marginBottom: 25,
+  },
+  noEnrollmentText: {
+    fontSize: 16,
+    color: colors.gray,
+    textAlign: 'center',
+    marginTop: 15,
+    marginBottom: 20,
+  },
+  enrollNowButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  enrollNowButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   statsContainer: {
     marginBottom: 30,
@@ -239,23 +301,6 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  statItem: {
-    backgroundColor: colors.lightGray,
-    borderRadius: 12,
-    padding: 15,
-    alignItems: 'center',
-    width: '31%',
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.gray,
-    marginTop: 5,
   },
 });
 

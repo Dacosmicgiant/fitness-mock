@@ -78,11 +78,13 @@
 
   export default {
     primary: '#4C68D7',  // You can choose your own brand color
+    primaryLight: '#E6F0FF',
     secondary: '#2E90FA',
     white: '#FFFFFF',
     black: '#000000',
     gray: '#6B7280',
     lightGray: '#E5E7EB',
     error: '#EF4444',
-    success: '#10B981',
+    success: '#4CAF50', // Green for correct answers
+    // error: '#F44336',   // Red for incorrect answers
   };
