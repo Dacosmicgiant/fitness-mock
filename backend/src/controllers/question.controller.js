@@ -1,6 +1,9 @@
 import Question from '../models/question.model.js';
 import Module from '../models/module.model.js';
 import User from '../models/user.model.js';
+import Certification from '../models/certification.model.js';
+
+import mongoose from 'mongoose';
 
 // @desc    Get all questions
 // @route   GET /api/questions
@@ -152,73 +155,89 @@ export const deleteQuestion = async (req, res) => {
 // @desc    Get questions for a test
 // @route   GET /api/questions/test
 // @access  Private
+
 export const getQuestionsForTest = async (req, res) => {
+  console.log("Query parameters:", req.query); // Add this line
   const { certificationId, moduleId, count, difficulty } = req.query;
-  
+
   try {
+    // Validate certificationId
+    if (!mongoose.Types.ObjectId.isValid(certificationId)) {
+      return res.status(400).json({ message: "Invalid certification ID" });
+    }
+
+    // Validate moduleId (if provided)
+    if (moduleId && !mongoose.Types.ObjectId.isValid(moduleId)) {
+      return res.status(400).json({ message: "Invalid module ID" });
+    }
+
     // Validate user has tests remaining
     const user = await User.findById(req.user.id);
-    
-    if (user.testsRemaining <= 0 && user.subscriptionStatus === 'free') {
-      return res.status(403).json({ 
-        message: 'No tests remaining. Upgrade to premium to continue.' 
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.testsRemaining <= 0 && user.subscriptionStatus === "free") {
+      return res.status(403).json({
+        message: "No tests remaining. Upgrade to premium to continue.",
       });
     }
-    
-    // Build query based on params
-    const query = {};
-    
-    if (moduleId) {
-      query.module = moduleId;
-    } else {
-      // If no moduleId, get all questions from modules in the certification
-      const modules = await Module.find({ certification: certificationId }, '_id');
-      query.module = { $in: modules.map(m => m._id) };
+
+    // Retrieve certification details and modules
+    const certification = await Certification.findById(certificationId).lean();
+    if (!certification) {
+      return res.status(404).json({ message: "Certification not found" });
     }
-    
+
+    // Build query for fetching questions
+    const query = {};
+
+    if (moduleId) {
+      query.module = new mongoose.Types.ObjectId(moduleId);
+    } else {
+      // If no moduleId provided, get all module IDs from certification
+      if (!certification.modules || certification.modules.length === 0) {
+        return res.status(404).json({ message: "No modules found for this certification" });
+      }
+      query.module = { $in: certification.modules.map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
     if (difficulty) {
       query.difficulty = difficulty;
     }
-    
-    // Get randomized questions
+
+    // Fetch questions
     let questions = await Question.find(query)
-      .populate('module', 'title certification');
-    
-    // Randomize and limit
-    questions = questions.sort(() => 0.5 - Math.random());
-    questions = questions.slice(0, parseInt(count) || 10);
-    
+      .populate("module", "title certification")
+      .lean();
+
+    // Randomize and limit results
+    questions = questions.sort(() => 0.5 - Math.random()).slice(0, parseInt(count) || 10);
+
     // If no questions found
-    if (!questions || questions.length === 0) {
-      return res.status(404).json({ message: 'No questions found for the specified criteria' });
+    if (!questions.length) {
+      return res.status(404).json({ message: "No questions found for the specified criteria" });
     }
-    
+
     // Decrement tests remaining for free users
-    if (user.subscriptionStatus === 'free') {
+    if (user.subscriptionStatus === "free") {
       user.testsRemaining -= 1;
       await user.save();
     }
-    
-    // Remove correct answers for client
-    const clientQuestions = questions.map(q => {
-      const { _id, text, module, difficulty } = q;
-      const options = q.options.map(({ _id, text }) => ({ _id, text }));
-      
-      return {
-        _id,
-        text,
-        module,
-        difficulty,
-        options
-      };
-    });
-    
+
+    // Remove correct answers before sending to the client
+    const clientQuestions = questions.map(({ _id, text, module, difficulty, options }) => ({
+      _id,
+      text,
+      module,
+      difficulty,
+      options: options.map(({ _id, text }) => ({ _id, text })),
+    }));
+
     res.json({
       questions: clientQuestions,
       testsRemaining: user.testsRemaining,
-      questionIds: questions.map(q => q._id)
+      questionIds: questions.map((q) => q._id),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

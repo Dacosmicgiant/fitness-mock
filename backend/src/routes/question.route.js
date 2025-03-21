@@ -12,15 +12,15 @@ import { protectRoute, protectAdminRoutes } from '../middleware/auth.middleware.
 
 const router = express.Router();
 
+// Protected routes (requires authentication)
+router.get('/test', protectRoute, getQuestionsForTest); // Moved up
+router.get('/module/:moduleId', protectRoute, getQuestionsByModule);
+
 // Admin routes
 router.get('/', protectRoute, protectAdminRoutes, getAllQuestions);
-router.get('/:id', protectRoute, protectAdminRoutes, getQuestionById);
+router.get('/:id', protectRoute, protectAdminRoutes, getQuestionById); // Moved down
 router.post('/', protectRoute, protectAdminRoutes, createQuestion);
 router.put('/:id', protectRoute, protectAdminRoutes, updateQuestion);
 router.delete('/:id', protectRoute, protectAdminRoutes, deleteQuestion);
-
-// protected routes (requires authentication)
-router.get('/module/:moduleId', protectRoute, getQuestionsByModule);
-router.get('/test', protectRoute, getQuestionsForTest);
 
 export default router;
