@@ -1,22 +1,22 @@
 import TestAttempt from '../models/testAttempt.model.js';
-import User from '../models/user.model.js';
 import Question from '../models/question.model.js';
+import User from '../models/user.model.js';
 import Module from '../models/module.model.js';
+import Certification from '../models/certification.model.js';
 
-// @desc    Get all test attempts for a user
+// @desc    Get user's test attempts
 // @route   GET /api/tests/attempts
 // @access  Private
 export const getUserTestAttempts = async (req, res) => {
   try {
-    const testAttempts = await TestAttempt.find({ user: req.user._id })
+    const testAttempts = await TestAttempt.find({ user: req.user.id })
       .populate('certification', 'title')
       .populate('module', 'title')
-      .sort({ completedAt: -1 });
+      .sort('-completedAt');
     
     res.json(testAttempts);
   } catch (error) {
-    console.error('Get test attempts error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -26,185 +26,195 @@ export const getUserTestAttempts = async (req, res) => {
 export const getTestAttemptById = async (req, res) => {
   try {
     const testAttempt = await TestAttempt.findById(req.params.id)
-      .populate('certification', 'title')
-      .populate('module', 'title')
+      .populate('certification', 'title description')
+      .populate('module', 'title description')
       .populate({
         path: 'responses.question',
-        select: 'text options explanation difficulty'
+        select: 'text options explanation'
       });
-
+    
     if (!testAttempt) {
       return res.status(404).json({ message: 'Test attempt not found' });
     }
-
-    // Check if the test attempt belongs to the user
-    if (testAttempt.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to access this test attempt' });
+    
+    // Check if the test belongs to the user
+    if (testAttempt.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to access this test' });
     }
-
+    
     res.json(testAttempt);
   } catch (error) {
-    console.error('Get test attempt error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Create a test attempt
+// @desc    Create a new test attempt (submit test)
 // @route   POST /api/tests/attempts
 // @access  Private
 export const createTestAttempt = async (req, res) => {
+  const {
+    certificationId,
+    moduleId,
+    isFullTest,
+    questionResponses,
+    duration
+  } = req.body;
+  
   try {
-    const { 
-      certificationId, 
-      moduleId, 
-      isFullTest, 
-      questionCount, 
-      duration, 
-      responses 
-    } = req.body;
-
-    // Validate responses
-    if (!responses || !Array.isArray(responses)) {
-      return res.status(400).json({ message: 'Invalid responses format' });
+    // Validate certification exists
+    const certification = await Certification.findById(certificationId);
+    if (!certification) {
+      return res.status(404).json({ message: 'Certification not found' });
     }
-
-    // Check if user has free tests or subscription
-    const user = await User.findById(req.user._id);
-    if (user.subscriptionStatus === 'free' && user.testsRemaining <= 0) {
-      return res.status(403).json({ 
-        message: 'No tests remaining. Please subscribe to continue.' 
-      });
+    
+    // Validate module if provided
+    let module = null;
+    if (moduleId) {
+      module = await Module.findById(moduleId);
+      if (!module) {
+        return res.status(404).json({ message: 'Module not found' });
+      }
     }
-
+    
+    // Get all question IDs from responses
+    const questionIds = questionResponses.map(response => response.questionId);
+    
+    // Fetch questions with correct answers
+    const questions = await Question.find({ _id: { $in: questionIds } });
+    
+    // Map of question ID to correct answer index
+    const correctAnswersMap = {};
+    questions.forEach(question => {
+      correctAnswersMap[question._id.toString()] = question.options.findIndex(option => option.isCorrect);
+    });
+    
     // Calculate score
     let score = 0;
-    const processedResponses = [];
-
-    for (const response of responses) {
-      const question = await Question.findById(response.questionId);
-      if (!question) {
-        continue;
-      }
-
-      const isCorrect = question.options[response.selectedOption]?.isCorrect || false;
+    const responses = questionResponses.map(response => {
+      const questionId = response.questionId;
+      const selectedOption = response.selectedOption;
+      const isCorrect = correctAnswersMap[questionId] === selectedOption;
       
       if (isCorrect) {
-        score += 1;
+        score++;
       }
-
-      processedResponses.push({
-        question: question._id,
-        selectedOption: response.selectedOption,
+      
+      return {
+        question: questionId,
+        selectedOption,
         isCorrect
-      });
-    }
-
+      };
+    });
+    
     // Create test attempt
-    const testAttempt = await TestAttempt.create({
-      user: req.user._id,
+    const testAttempt = new TestAttempt({
+      user: req.user.id,
       certification: certificationId,
       module: moduleId,
       isFullTest,
-      questionCount,
+      questionCount: questionResponses.length,
       score,
-      maxScore: responses.length,
+      maxScore: questionResponses.length,
       duration,
-      responses: processedResponses
+      responses
     });
-
-    // Decrement tests remaining if free user
-    if (user.subscriptionStatus === 'free') {
-      user.testsRemaining -= 1;
-      await user.save();
-    }
-
-    res.status(201).json(testAttempt);
+    
+    await testAttempt.save();
+    
+    res.status(201).json({
+      _id: testAttempt._id,
+      score,
+      maxScore: questionResponses.length,
+      percentage: (score / questionResponses.length) * 100,
+      passed: (score / questionResponses.length) >= 0.7 // 70% passing threshold
+    });
+    
   } catch (error) {
-    console.error('Create test attempt error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Get test statistics for a user
+// @desc    Get user's test statistics
 // @route   GET /api/tests/stats
 // @access  Private
 export const getUserTestStats = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const userId = req.user.id;
+    const { certificationId } = req.query;
     
-    // Get enrolled certifications
-    const enrolledCertifications = user.enrolledCertifications;
+    // Build query
+    const query = { user: userId };
+    if (certificationId) {
+      query.certification = certificationId;
+    }
     
-    // Get statistics for each certification
-    const stats = [];
+    // Get all user's test attempts
+    const testAttempts = await TestAttempt.find(query);
     
-    for (const certId of enrolledCertifications) {
-      const attempts = await TestAttempt.find({ 
-        user: req.user._id,
-        certification: certId
-      });
-      
-      if (attempts.length === 0) {
-        continue;
-      }
-      
-      // Calculate average score
-      const totalScore = attempts.reduce((sum, attempt) => sum + (attempt.score / attempt.maxScore), 0);
-      const avgScore = attempts.length > 0 ? (totalScore / attempts.length) * 100 : 0;
-      
-      // Get best score
-      const bestScore = Math.max(...attempts.map(attempt => (attempt.score / attempt.maxScore) * 100));
-      
-      // Get modules in certification
-      const modules = await Module.find({ certification: certId });
-      
-      // Calculate module completion
-      const moduleStats = [];
-      for (const module of modules) {
-        const moduleAttempts = attempts.filter(
-          attempt => attempt.module && attempt.module.toString() === module._id.toString()
-        );
-        
-        if (moduleAttempts.length > 0) {
-          const moduleTotalScore = moduleAttempts.reduce(
-            (sum, attempt) => sum + (attempt.score / attempt.maxScore), 0
-          );
-          const moduleAvgScore = moduleAttempts.length > 0 ? 
-            (moduleTotalScore / moduleAttempts.length) * 100 : 0;
-          
-          moduleStats.push({
-            moduleId: module._id,
-            moduleName: module.title,
-            attempts: moduleAttempts.length,
-            avgScore: moduleAvgScore.toFixed(2)
-          });
-        }
-      }
-      
-      // Get full test attempts
-      const fullTestAttempts = attempts.filter(attempt => attempt.isFullTest);
-      const fullTestAvgScore = fullTestAttempts.length > 0 ?
-        (fullTestAttempts.reduce((sum, attempt) => sum + (attempt.score / attempt.maxScore), 0) / 
-        fullTestAttempts.length) * 100 : 0;
-      
-      stats.push({
-        certificationId: certId,
-        totalAttempts: attempts.length,
-        avgScore: avgScore.toFixed(2),
-        bestScore: bestScore.toFixed(2),
-        moduleStats,
-        fullTestAttempts: fullTestAttempts.length,
-        fullTestAvgScore: fullTestAvgScore.toFixed(2)
+    if (testAttempts.length === 0) {
+      return res.json({
+        totalTests: 0,
+        averageScore: 0,
+        accuracy: 0,
+        testsRemaining: req.user.subscriptionStatus === 'free' ? req.user.testsRemaining : 'unlimited'
       });
     }
     
+    // Calculate total tests
+    const totalTests = testAttempts.length;
+    
+    // Calculate average score
+    const totalScorePercentage = testAttempts.reduce((acc, test) => {
+      return acc + (test.score / test.maxScore) * 100;
+    }, 0);
+    
+    const averageScore = totalScorePercentage / totalTests;
+    
+    // Calculate overall accuracy
+    const totalQuestions = testAttempts.reduce((acc, test) => acc + test.responses.length, 0);
+    const correctAnswers = testAttempts.reduce((acc, test) => {
+      return acc + test.responses.filter(response => response.isCorrect).length;
+    }, 0);
+    
+    const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    
+    // Get stats by difficulty if available
+    const difficultyStats = {};
+    
+    // Get certification data
+    let certificationStats = [];
+    if (!certificationId) {
+      // Get stats by certification
+      const certifications = await Certification.find({ _id: { $in: [...new Set(testAttempts.map(t => t.certification))] } });
+      
+      certificationStats = await Promise.all(certifications.map(async (cert) => {
+        const certTests = testAttempts.filter(t => t.certification.toString() === cert._id.toString());
+        const certTotalScore = certTests.reduce((acc, test) => acc + (test.score / test.maxScore) * 100, 0);
+        const certAvgScore = certTotalScore / certTests.length;
+        
+        return {
+          id: cert._id,
+          name: cert.title,
+          attempts: certTests.length,
+          averageScore: certAvgScore
+        };
+      }));
+    }
+    
+    // Get user subscription status and tests remaining
+    const user = await User.findById(userId);
+    
     res.json({
+      totalTests,
+      averageScore,
+      accuracy,
+      certificationStats: certificationStats.length > 0 ? certificationStats : undefined,
+      difficultyStats: Object.keys(difficultyStats).length > 0 ? difficultyStats : undefined,
       testsRemaining: user.subscriptionStatus === 'free' ? user.testsRemaining : 'unlimited',
-      subscriptionStatus: user.subscriptionStatus,
-      stats
+      subscriptionStatus: user.subscriptionStatus
     });
+    
   } catch (error) {
-    console.error('Get test stats error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

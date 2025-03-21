@@ -1,18 +1,17 @@
 import Question from '../models/question.model.js';
 import Module from '../models/module.model.js';
+import User from '../models/user.model.js';
 
 // @desc    Get all questions
 // @route   GET /api/questions
 // @access  Admin
 export const getAllQuestions = async (req, res) => {
   try {
-    const questions = await Question.find({})
-      .populate('module', 'title');
-    
+    const questions = await Question.find()
+      .populate('module', 'title certification');
     res.json(questions);
   } catch (error) {
-    console.error('Get questions error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -22,16 +21,15 @@ export const getAllQuestions = async (req, res) => {
 export const getQuestionById = async (req, res) => {
   try {
     const question = await Question.findById(req.params.id)
-      .populate('module', 'title');
-
-    if (question) {
-      res.json(question);
-    } else {
-      res.status(404).json({ message: 'Question not found' });
+      .populate('module', 'title certification');
+    
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
     }
+    
+    res.json(question);
   } catch (error) {
-    console.error('Get question error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -40,139 +38,114 @@ export const getQuestionById = async (req, res) => {
 // @access  Private
 export const getQuestionsByModule = async (req, res) => {
   try {
-    const questions = await Question.find({ module: req.params.moduleId })
-      .select('-options.isCorrect');  // Don't send correct answers to client
+    const questions = await Question.find({ module: req.params.moduleId });
+    
+    if (!questions || questions.length === 0) {
+      return res.status(404).json({ message: 'No questions found for this module' });
+    }
     
     res.json(questions);
   } catch (error) {
-    console.error('Get questions by module error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Create a question
+// @desc    Create a new question
 // @route   POST /api/questions
 // @access  Admin
 export const createQuestion = async (req, res) => {
+  const { text, options, difficulty, explanation, module } = req.body;
+  
   try {
-    const { text, options, difficulty, explanation, moduleId } = req.body;
-
     // Check if module exists
-    const module = await Module.findById(moduleId);
-    if (!module) {
+    const moduleExists = await Module.findById(module);
+    
+    if (!moduleExists) {
       return res.status(404).json({ message: 'Module not found' });
     }
-
-    // Validate options
-    if (!options || options.length < 2) {
-      return res.status(400).json({ message: 'At least 2 options are required' });
-    }
-
-    // Check if at least one option is correct
+    
+    // Validate options - ensure at least one correct answer
     const hasCorrectOption = options.some(option => option.isCorrect);
+    
     if (!hasCorrectOption) {
-      return res.status(400).json({ message: 'At least one option must be correct' });
+      return res.status(400).json({ message: 'Question must have at least one correct answer' });
     }
-
-    const question = await Question.create({
+    
+    const question = new Question({
       text,
       options,
       difficulty,
       explanation,
-      module: moduleId
+      module
     });
-
-    // Add question to module
-    module.questions.push(question._id);
-    await module.save();
-
-    res.status(201).json(question);
+    
+    const savedQuestion = await question.save();
+    
+    // Update module with the new question
+    moduleExists.questions.push(savedQuestion._id);
+    await moduleExists.save();
+    
+    res.status(201).json(savedQuestion);
   } catch (error) {
-    console.error('Create question error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Update a question
+// @desc    Update question
 // @route   PUT /api/questions/:id
 // @access  Admin
 export const updateQuestion = async (req, res) => {
   try {
-    const { text, options, difficulty, explanation, moduleId } = req.body;
-
     const question = await Question.findById(req.params.id);
-
-    if (question) {
-      // Validate options if provided
-      if (options) {
-        if (options.length < 2) {
-          return res.status(400).json({ message: 'At least 2 options are required' });
-        }
-
-        const hasCorrectOption = options.some(option => option.isCorrect);
-        if (!hasCorrectOption) {
-          return res.status(400).json({ message: 'At least one option must be correct' });
-        }
-      }
-
-      question.text = text || question.text;
-      question.options = options || question.options;
-      question.difficulty = difficulty || question.difficulty;
-      question.explanation = explanation || question.explanation;
-      
-      // If module is changing, update relationships
-      if (moduleId && moduleId !== question.module.toString()) {
-        // Remove question from old module
-        await Module.findByIdAndUpdate(
-          question.module,
-          { $pull: { questions: question._id } }
-        );
-        
-        // Add question to new module
-        const newModule = await Module.findById(moduleId);
-        if (!newModule) {
-          return res.status(404).json({ message: 'New module not found' });
-        }
-        
-        newModule.questions.push(question._id);
-        await newModule.save();
-        
-        question.module = moduleId;
-      }
-
-      const updatedQuestion = await question.save();
-      res.json(updatedQuestion);
-    } else {
-      res.status(404).json({ message: 'Question not found' });
+    
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
     }
+    
+    const { text, options, difficulty, explanation } = req.body;
+    
+    // Validate options if provided - ensure at least one correct answer
+    if (options) {
+      const hasCorrectOption = options.some(option => option.isCorrect);
+      
+      if (!hasCorrectOption) {
+        return res.status(400).json({ message: 'Question must have at least one correct answer' });
+      }
+    }
+    
+    question.text = text || question.text;
+    question.options = options || question.options;
+    question.difficulty = difficulty || question.difficulty;
+    question.explanation = explanation || question.explanation;
+    
+    await question.save();
+    res.json(question);
   } catch (error) {
-    console.error('Update question error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Delete a question
+// @desc    Delete question
 // @route   DELETE /api/questions/:id
 // @access  Admin
 export const deleteQuestion = async (req, res) => {
   try {
     const question = await Question.findById(req.params.id);
-
-    if (question) {
-      // Remove question from module
-      await Module.findByIdAndUpdate(
-        question.module,
-        { $pull: { questions: question._id } }
-      );
-
-      await question.deleteOne();
-      res.json({ message: 'Question removed' });
-    } else {
-      res.status(404).json({ message: 'Question not found' });
+    
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
     }
+    
+    // Remove question from module
+    await Module.findByIdAndUpdate(
+      question.module,
+      { $pull: { questions: question._id } }
+    );
+    
+    await question.remove();
+    res.json({ message: 'Question removed' });
   } catch (error) {
-    console.error('Delete question error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -180,66 +153,72 @@ export const deleteQuestion = async (req, res) => {
 // @route   GET /api/questions/test
 // @access  Private
 export const getQuestionsForTest = async (req, res) => {
+  const { certificationId, moduleId, count, difficulty } = req.query;
+  
   try {
-    const { moduleId, count = 25, isFullTest = false } = req.query;
+    // Validate user has tests remaining
+    const user = await User.findById(req.user.id);
     
-    let query = {};
-    
-    if (isFullTest === 'true') {
-      // For full test, get questions from all modules in the certification
-      const module = await Module.findById(moduleId);
-      if (!module) {
-        return res.status(404).json({ message: 'Module not found' });
-      }
-      
-      const modules = await Module.find({ certification: module.certification });
-      const moduleIds = modules.map(m => m._id);
-      
-      query = { module: { $in: moduleIds } };
-    } else {
-      // For single module test
-      query = { module: moduleId };
+    if (user.testsRemaining <= 0 && user.subscriptionStatus === 'free') {
+      return res.status(403).json({ 
+        message: 'No tests remaining. Upgrade to premium to continue.' 
+      });
     }
     
-    // Calculate counts for each difficulty level
-    const easyCount = Math.floor(count * 0.5);
-    const mediumCount = Math.floor(count * 0.3);
-    const hardCount = count - easyCount - mediumCount;
+    // Build query based on params
+    const query = {};
     
-    // Get questions by difficulty level
-    const easyQuestions = await Question.aggregate([
-      { $match: { ...query, difficulty: 'easy' } },
-      { $sample: { size: easyCount } }
-    ]);
+    if (moduleId) {
+      query.module = moduleId;
+    } else {
+      // If no moduleId, get all questions from modules in the certification
+      const modules = await Module.find({ certification: certificationId }, '_id');
+      query.module = { $in: modules.map(m => m._id) };
+    }
     
-    const mediumQuestions = await Question.aggregate([
-      { $match: { ...query, difficulty: 'medium' } },
-      { $sample: { size: mediumCount } }
-    ]);
+    if (difficulty) {
+      query.difficulty = difficulty;
+    }
     
-    const hardQuestions = await Question.aggregate([
-      { $match: { ...query, difficulty: 'hard' } },
-      { $sample: { size: hardCount } }
-    ]);
+    // Get randomized questions
+    let questions = await Question.find(query)
+      .populate('module', 'title certification');
     
-    // Combine questions
-    const questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
+    // Randomize and limit
+    questions = questions.sort(() => 0.5 - Math.random());
+    questions = questions.slice(0, parseInt(count) || 10);
     
-    // Shuffle questions
-    const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
+    // If no questions found
+    if (!questions || questions.length === 0) {
+      return res.status(404).json({ message: 'No questions found for the specified criteria' });
+    }
     
-    // Remove correct answers from client response
-    const testQuestions = shuffledQuestions.map(q => ({
-      ...q,
-      options: q.options.map(opt => ({
-        text: opt.text,
-        _id: opt._id
-      }))
-    }));
+    // Decrement tests remaining for free users
+    if (user.subscriptionStatus === 'free') {
+      user.testsRemaining -= 1;
+      await user.save();
+    }
     
-    res.json(testQuestions);
+    // Remove correct answers for client
+    const clientQuestions = questions.map(q => {
+      const { _id, text, module, difficulty } = q;
+      const options = q.options.map(({ _id, text }) => ({ _id, text }));
+      
+      return {
+        _id,
+        text,
+        module,
+        difficulty,
+        options
+      };
+    });
+    
+    res.json({
+      questions: clientQuestions,
+      testsRemaining: user.testsRemaining,
+      questionIds: questions.map(q => q._id)
+    });
   } catch (error) {
-    console.error('Get test questions error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

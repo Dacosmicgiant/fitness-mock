@@ -1,19 +1,15 @@
 import Module from '../models/module.model.js';
 import Certification from '../models/certification.model.js';
-import Question from '../models/question.model.js';
 
 // @desc    Get all modules
 // @route   GET /api/modules
 // @access  Public
 export const getAllModules = async (req, res) => {
   try {
-    const modules = await Module.find({})
-      .populate('certification', 'title');
-    
+    const modules = await Module.find();
     res.json(modules);
   } catch (error) {
-    console.error('Get modules error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -24,16 +20,15 @@ export const getModuleById = async (req, res) => {
   try {
     const module = await Module.findById(req.params.id)
       .populate('certification', 'title description')
-      .populate('questions', 'text difficulty');
-
-    if (module) {
-      res.json(module);
-    } else {
-      res.status(404).json({ message: 'Module not found' });
+      .populate('questions');
+    
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
     }
+    
+    res.json(module);
   } catch (error) {
-    console.error('Get module error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -42,114 +37,93 @@ export const getModuleById = async (req, res) => {
 // @access  Public
 export const getModulesByCertification = async (req, res) => {
   try {
-    const modules = await Module.find({ certification: req.params.certificationId })
-      .populate('certification', 'title');
+    const modules = await Module.find({ certification: req.params.certificationId });
+    
+    if (!modules || modules.length === 0) {
+      return res.status(404).json({ message: 'No modules found for this certification' });
+    }
     
     res.json(modules);
   } catch (error) {
-    console.error('Get modules by certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Create a module
+// @desc    Create a new module
 // @route   POST /api/modules
 // @access  Admin
 export const createModule = async (req, res) => {
+  const { title, description, certification } = req.body;
+  
   try {
-    const { title, description, certificationId } = req.body;
-
     // Check if certification exists
-    const certification = await Certification.findById(certificationId);
-    if (!certification) {
+    const certificationExists = await Certification.findById(certification);
+    
+    if (!certificationExists) {
       return res.status(404).json({ message: 'Certification not found' });
     }
-
-    const module = await Module.create({
+    
+    const module = new Module({
       title,
       description,
-      certification: certificationId
+      certification
     });
-
-    // Add module to certification
-    certification.modules.push(module._id);
-    await certification.save();
-
-    res.status(201).json(module);
+    
+    const savedModule = await module.save();
+    
+    // Update certification with the new module
+    certificationExists.modules.push(savedModule._id);
+    await certificationExists.save();
+    
+    res.status(201).json(savedModule);
   } catch (error) {
-    console.error('Create module error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Update a module
+// @desc    Update module
 // @route   PUT /api/modules/:id
 // @access  Admin
 export const updateModule = async (req, res) => {
   try {
-    const { title, description, certificationId } = req.body;
-
     const module = await Module.findById(req.params.id);
-
-    if (module) {
-      module.title = title || module.title;
-      module.description = description || module.description;
-      
-      // If certification is changing, update relationships
-      if (certificationId && certificationId !== module.certification.toString()) {
-        // Remove module from old certification
-        await Certification.findByIdAndUpdate(
-          module.certification,
-          { $pull: { modules: module._id } }
-        );
-        
-        // Add module to new certification
-        const newCertification = await Certification.findById(certificationId);
-        if (!newCertification) {
-          return res.status(404).json({ message: 'New certification not found' });
-        }
-        
-        newCertification.modules.push(module._id);
-        await newCertification.save();
-        
-        module.certification = certificationId;
-      }
-
-      const updatedModule = await module.save();
-      res.json(updatedModule);
-    } else {
-      res.status(404).json({ message: 'Module not found' });
+    
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
     }
+    
+    const { title, description } = req.body;
+    
+    module.title = title || module.title;
+    module.description = description || module.description;
+    
+    await module.save();
+    res.json(module);
   } catch (error) {
-    console.error('Update module error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Delete a module
+// @desc    Delete module
 // @route   DELETE /api/modules/:id
 // @access  Admin
 export const deleteModule = async (req, res) => {
   try {
     const module = await Module.findById(req.params.id);
-
-    if (module) {
-      // Remove module from certification
-      await Certification.findByIdAndUpdate(
-        module.certification,
-        { $pull: { modules: module._id } }
-      );
-
-      // Delete all questions associated with this module
-      await Question.deleteMany({ module: module._id });
-
-      await module.deleteOne();
-      res.json({ message: 'Module removed' });
-    } else {
-      res.status(404).json({ message: 'Module not found' });
+    
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
     }
+    
+    // Remove module from certification
+    await Certification.findByIdAndUpdate(
+      module.certification,
+      { $pull: { modules: module._id } }
+    );
+    
+    await module.remove();
+    res.json({ message: 'Module removed' });
   } catch (error) {
-    console.error('Delete module error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

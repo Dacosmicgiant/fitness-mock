@@ -1,322 +1,254 @@
-# CertPrep API Testing Guide with Postman
+# How the API Works: A Complete Guide
 
-This guide will help you test all the API endpoints of your certification preparation application using Postman.
+I'll walk you through how all the components work together and how to test each endpoint with Postman.
 
-## Setup
+## Setting Up Your Application
 
-Before testing, make sure to:
+Your MERN stack application with React Native (Expo) has the following main features:
 
-1. Have your server running locally or deployed
-2. Create a Postman collection for your project
-3. Set up environment variables:
-   - `BASE_URL`: Your API base URL (e.g., `http://localhost:3000`)
-   - `TOKEN`: Will store the JWT after login
+1. Certification management
+2. Module structure within certifications
+3. Question bank
+4. Test taking system
+5. Progress tracking
 
-## Authentication Endpoints
+## 1. Setting Up Certifications
 
-### Register User
+### Create Certifications (Admin Only)
 
 ```
-POST {{BASE_URL}}/api/auth/register
+POST /api/certifications
 ```
 
-**Body (JSON):**
+**Request Body:**
 
 ```json
 {
-  "email": "test@example.com",
-  "password": "password123",
-  "name": "Test User"
+  "title": "Personal Trainer Certification",
+  "description": "Comprehensive certification for personal training professionals",
+  "image": "https://example.com/image.jpg"
 }
 ```
 
-**Expected Response:**
-
-- Status: 200 OK
-- Body: Contains a JWT token
-- Save the token to the `TOKEN` environment variable
-  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjdkOTlkMTljMGJkMDRhZmUzMGIxMTViIn0sImlhdCI6MTc0MjMxNDc3NywiZXhwIjoxNzQyOTE5NTc3fQ.pwmqYMLWIVTe2Q8ZaPbEwrKN6Kjo_t9lS8lB7JcWC3I
-
-### Login User
+### Getting All Certifications
 
 ```
-POST {{BASE_URL}}/api/auth/login
+GET /api/certifications
 ```
 
-**Body (JSON):**
+This endpoint returns all available certifications that users can enroll in.
+
+### Enrolling in a Certification
+
+```
+POST /api/certifications/:id/enroll
+```
+
+When a user clicks on a certification to enroll:
+
+1. The system checks if the user is already enrolled
+2. If not, adds the certification to their `enrolledCertifications` array
+3. Returns a success message with the certification details
+
+### Viewing Enrolled Certifications
+
+```
+GET /api/certifications/user/enrolled
+```
+
+This endpoint returns all certifications the current user is enrolled in.
+
+## 2. Managing Modules
+
+### Adding Modules to a Certification (Admin Only)
+
+```
+POST /api/modules
+```
+
+**Request Body:**
 
 ```json
 {
-  "email": "test@example.com",
-  "password": "password123"
+  "title": "Anatomy Fundamentals",
+  "description": "Basic understanding of human anatomy for fitness professionals",
+  "certification": "60d21b4667d0d8992e610c85" // Certification ID
 }
 ```
 
-**Expected Response:**
-
-- Status: 200 OK
-- Body: Contains a JWT token
-- Save the token to the `TOKEN` environment variable
-
-## Certification Endpoints
-
-### Get All Certifications
+### Getting Modules for a Certification
 
 ```
-GET {{BASE_URL}}/api/certifications
+GET /api/modules/certification/:certificationId
 ```
 
-**Expected Response:**
+This returns all modules associated with a specific certification, which helps users navigate learning material.
 
-- Status: 200 OK
-- Body: Array of certifications with populated modules
+## 3. Setting Up Questions
 
-### Get Certification by ID
-
-```
-GET {{BASE_URL}}/api/certifications/{{certificationId}}
-```
-
-**Expected Response:**
-
-- Status: 200 OK
-- Body: Certification details with populated modules
-
-### Enroll in a Certification
+### Adding Questions (Admin Only)
 
 ```
-POST {{BASE_URL}}/api/certifications/enroll/{{certificationId}}
+POST /api/questions
 ```
 
-**Headers:**
+**Request Body:**
 
-```
-Authorization: Bearer {{TOKEN}}
-```
-
-**Expected Response:**
-
-- Status: 200 OK
-- Body: Success message and certification details
-
-## Module Endpoints
-
-### Get Module by ID
-
-```
-GET {{BASE_URL}}/api/modules/{{moduleId}}
+```json
+{
+  "text": "Which of the following is not a major muscle group?",
+  "options": [
+    { "text": "Quadriceps", "isCorrect": false },
+    { "text": "Biceps", "isCorrect": false },
+    { "text": "Medialis", "isCorrect": true },
+    { "text": "Hamstrings", "isCorrect": false }
+  ],
+  "difficulty": "medium",
+  "explanation": "Medialis is not a major muscle group on its own but refers to part of other muscles like vastus medialis.",
+  "module": "60d21b4667d0d8992e610c86" // Module ID
+}
 ```
 
-**Expected Response:**
+The system ensures at least one option is marked as correct.
 
-- Status: 200 OK
-- Body: Module details
+## 4. Taking a Test
 
-## Test Endpoints
-
-### Get Test Questions for a Module
+### Starting a Test
 
 ```
-GET {{BASE_URL}}/api/tests/module/{{moduleId}}?count=25
-```
-
-**Headers:**
-
-```
-Authorization: Bearer {{TOKEN}}
+GET /api/questions/test
 ```
 
 **Query Parameters:**
 
-- `count`: Number of questions (optional, default 25)
+- `certificationId`: ID of the certification
+- `moduleId`: (Optional) ID of specific module for focused tests
+- `count`: Number of questions to include (default: 10)
+- `difficulty`: (Optional) Filter by difficulty level
 
-**Expected Response:**
+This endpoint:
 
-- Status: 200 OK
-- Body: Array of questions without correct answers
-- For free users, should decrease testsRemaining by 1
+1. Checks if the user has tests remaining (free users have limited tests)
+2. Retrieves random questions based on criteria
+3. Removes correct answer indicators before sending to client
+4. Decrements the tests remaining counter for free users
 
-### Get Test Questions for a Certification
-
-```
-GET {{BASE_URL}}/api/tests/certification/{{certId}}?count=50
-```
-
-**Headers:**
+### Submitting a Test
 
 ```
-Authorization: Bearer {{TOKEN}}
+POST /api/tests/attempts
 ```
 
-**Query Parameters:**
-
-- `count`: Number of questions (optional, default 50)
-
-**Expected Response:**
-
-- Status: 200 OK
-- Body: Array of questions without correct answers
-- For free users, should decrease testsRemaining by 1
-
-### Submit Test
-
-```
-POST {{BASE_URL}}/api/tests/submit
-```
-
-**Headers:**
-
-```
-Authorization: Bearer {{TOKEN}}
-```
-
-**Body (JSON):**
+**Request Body:**
 
 ```json
 {
-  "testType": "module", // or "full"
-  "moduleId": "{{moduleId}}", // only required if testType is "module"
-  "certificationId": "{{certificationId}}",
-  "responses": [
+  "certificationId": "60d21b4667d0d8992e610c85",
+  "moduleId": "60d21b4667d0d8992e610c86", // Optional
+  "isFullTest": false,
+  "duration": 15, // Minutes taken
+  "questionResponses": [
     {
-      "questionId": "{{questionId1}}",
-      "selectedOption": 1
+      "questionId": "60d21b4667d0d8992e610c87",
+      "selectedOption": 2
     },
     {
-      "questionId": "{{questionId2}}",
+      "questionId": "60d21b4667d0d8992e610c88",
       "selectedOption": 0
     }
-    // Add more responses as needed
-  ],
-  "duration": 30 // Duration in minutes
+    // More responses...
+  ]
 }
 ```
 
-**Expected Response:**
+This endpoint:
 
-- Status: 200 OK
-- Body: Score details and testAttemptId
-- Save the testAttemptId to use in the next test
+1. Validates the certification and module
+2. Fetches the actual questions with correct answers
+3. Processes user responses and calculates the score
+4. Saves the attempt and returns results including pass/fail status
 
-### Get Test Results with Explanations
+## 5. Tracking Progress
 
-```
-GET {{BASE_URL}}/api/tests/results/{{testAttemptId}}
-```
-
-**Headers:**
+### Viewing Test Attempts
 
 ```
-Authorization: Bearer {{TOKEN}}
+GET /api/tests/attempts
 ```
 
-**Expected Response:**
+This returns all test attempts by the current user, sorted by date.
 
-- Status: 200 OK
-- Body: Test attempt details with questions, selected options, and explanations
-
-## Subscription Endpoints
-
-### Get Subscription Plans
+### Viewing Detailed Test Results
 
 ```
-GET {{BASE_URL}}/api/subscriptions/plans
+GET /api/tests/attempts/:id
 ```
 
-**Expected Response:**
+This shows detailed information about a specific test, including:
 
-- Status: 200 OK
-- Body: Array of available subscription plans
+- Questions asked
+- User's responses
+- Correct answers
+- Explanations for each question
 
-### Create Order
-
-```
-POST {{BASE_URL}}/api/subscriptions/create-order
-```
-
-**Headers:**
+### Getting User Statistics
 
 ```
-Authorization: Bearer {{TOKEN}}
+GET /api/tests/stats
 ```
 
-**Body (JSON):**
+**Query Parameters:**
 
-```json
-{
-  "subscriptionId": "{{subscriptionId}}"
-}
-```
+- `certificationId`: (Optional) Filter stats by certification
 
-**Expected Response:**
+This endpoint provides:
 
-- Status: 200 OK
-- Body: Razorpay order details including orderId
+1. Total number of tests taken
+2. Average score percentage
+3. Overall accuracy (correct answers / total questions)
+4. Individual certification statistics (if not filtered)
+5. Subscription status and tests remaining
 
-### Verify Payment
+## Testing Flow in Postman
 
-```
-POST {{BASE_URL}}/api/subscriptions/verify-payment
-```
+1. **Authentication**:
 
-**Headers:**
+   - Sign up/login to get a JWT token
+   - Set the token in Authorization header or as a cookie
 
-```
-Authorization: Bearer {{TOKEN}}
-```
+2. **Create Test Data (Admin)**:
 
-**Body (JSON):**
+   - Create certifications
+   - Add modules to certifications
+   - Add questions to modules
 
-```json
-{
-  "razorpay_order_id": "order_123456789",
-  "razorpay_payment_id": "pay_123456789",
-  "razorpay_signature": "generated_signature"
-}
-```
+3. **User Flow**:
+   - Browse certifications
+   - Enroll in a certification
+   - View enrolled certifications
+   - Start a test by requesting questions
+   - Submit test answers
+   - View results and statistics
 
-**Expected Response:**
+## Example Testing Sequence
 
-- Status: 200 OK
-- Body: Success message and subscription expiry date
+1. Create a certification (as admin)
+2. Add 2-3 modules to the certification
+3. Add 5+ questions to each module
+4. As a user, enroll in the certification
+5. Start a test with 10 questions
+6. Submit random answers
+7. Check the results
+8. View your statistics
+9. Take another test to see if stats update
 
-## Error Testing
+The system tracks:
 
-For each endpoint, also test error scenarios:
+- Test attempts
+- Score history
+- Accuracy
+- Remaining free tests
 
-1. **Authentication Failures:**
+Users with a premium subscription can take unlimited tests, while free users are limited to 3 tests.
 
-   - Missing or invalid token
-   - Expected: 401 Unauthorized
-
-2. **Free User Limits:**
-
-   - Test module/certification when testsRemaining is 0
-   - Expected: 403 Forbidden
-
-3. **Not Found Scenarios:**
-
-   - Request with invalid IDs
-   - Expected: 404 Not Found
-
-4. **Bad Requests:**
-   - Missing required fields
-   - Expected: 400 Bad Request
-
-## Test Data Setup
-
-Before testing, you'll need to seed your database with:
-
-1. User accounts (free and premium)
-2. Certifications
-3. Modules linked to certifications
-4. Questions with different difficulty levels
-5. Subscription plans
-
-## Common Issues to Watch For
-
-1. Check for proper token usage in auth-protected routes
-2. Verify that free users' test count decreases appropriately
-3. Make sure premium users don't have test limitations
-4. Confirm that enrollment works correctly
-5. Verify that submitted responses properly calculate scores
+This comprehensive API allows you to create a complete fitness mock test application where users can practice for certification exams, track their progress, and focus on areas that need improvement.

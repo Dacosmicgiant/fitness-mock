@@ -1,5 +1,4 @@
 import Certification from '../models/certification.model.js';
-import Module from '../models/module.model.js';
 import User from '../models/user.model.js';
 
 // @desc    Get all certifications
@@ -7,11 +6,10 @@ import User from '../models/user.model.js';
 // @access  Public
 export const getAllCertifications = async (req, res) => {
   try {
-    const certifications = await Certification.find({}).populate('modules', 'title description');
+    const certifications = await Certification.find();
     res.json(certifications);
   } catch (error) {
-    console.error('Get certifications error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -21,99 +19,81 @@ export const getAllCertifications = async (req, res) => {
 export const getCertificationById = async (req, res) => {
   try {
     const certification = await Certification.findById(req.params.id)
-      .populate({
-        path: 'modules',
-        select: 'title description'
-      });
-
-    if (certification) {
-      res.json(certification);
-    } else {
-      res.status(404).json({ message: 'Certification not found' });
+      .populate('modules');
+    
+    if (!certification) {
+      return res.status(404).json({ message: 'Certification not found' });
     }
+    
+    res.json(certification);
   } catch (error) {
-    console.error('Get certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Create a certification
+// @desc    Create a new certification
 // @route   POST /api/certifications
 // @access  Admin
 export const createCertification = async (req, res) => {
+  const { title, description, image } = req.body;
+  
   try {
-    const { title, description, image } = req.body;
-
-    const certification = await Certification.create({
+    const certification = new Certification({
       title,
       description,
-      image
+      image,
     });
-
+    
+    await certification.save();
     res.status(201).json(certification);
   } catch (error) {
-    console.error('Create certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Update a certification
+// @desc    Update certification
 // @route   PUT /api/certifications/:id
 // @access  Admin
 export const updateCertification = async (req, res) => {
   try {
-    const { title, description, image } = req.body;
-
     const certification = await Certification.findById(req.params.id);
-
-    if (certification) {
-      certification.title = title || certification.title;
-      certification.description = description || certification.description;
-      certification.image = image || certification.image;
-
-      const updatedCertification = await certification.save();
-      res.json(updatedCertification);
-    } else {
-      res.status(404).json({ message: 'Certification not found' });
+    
+    if (!certification) {
+      return res.status(404).json({ message: 'Certification not found' });
     }
+    
+    const { title, description, image } = req.body;
+    
+    certification.title = title || certification.title;
+    certification.description = description || certification.description;
+    certification.image = image || certification.image;
+    
+    await certification.save();
+    res.json(certification);
   } catch (error) {
-    console.error('Update certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Delete a certification
+// @desc    Delete certification
 // @route   DELETE /api/certifications/:id
 // @access  Admin
 export const deleteCertification = async (req, res) => {
   try {
     const certification = await Certification.findById(req.params.id);
-
-    if (certification) {
-      // Remove references from modules
-      await Module.updateMany(
-        { certification: certification._id },
-        { $set: { certification: null } }
-      );
-
-      // Remove certification from users' enrolledCertifications
-      await User.updateMany(
-        { enrolledCertifications: certification._id },
-        { $pull: { enrolledCertifications: certification._id } }
-      );
-
-      await certification.deleteOne();
-      res.json({ message: 'Certification removed' });
-    } else {
-      res.status(404).json({ message: 'Certification not found' });
+    
+    if (!certification) {
+      return res.status(404).json({ message: 'Certification not found' });
     }
+    
+    await certification.remove();
+    res.json({ message: 'Certification removed' });
   } catch (error) {
-    console.error('Delete certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Enroll user in certification
+// @desc    Enroll user in a certification
 // @route   POST /api/certifications/:id/enroll
 // @access  Private
 export const enrollInCertification = async (req, res) => {
@@ -123,50 +103,34 @@ export const enrollInCertification = async (req, res) => {
     if (!certification) {
       return res.status(404).json({ message: 'Certification not found' });
     }
-
-    const user = await User.findById(req.user._id);
-
+    
+    const user = await User.findById(req.user.id);
+    
     // Check if user is already enrolled
     if (user.enrolledCertifications.includes(certification._id)) {
       return res.status(400).json({ message: 'Already enrolled in this certification' });
     }
-
-    // Add certification to user's enrollments
+    
+    // Add certification to user's enrolled certifications
     user.enrolledCertifications.push(certification._id);
     await user.save();
-
-    res.status(200).json({ 
-      message: 'Successfully enrolled',
-      enrolledCertifications: user.enrolledCertifications
-    });
+    
+    res.json({ message: 'Successfully enrolled in certification', certification });
   } catch (error) {
-    console.error('Enroll certification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Get user's enrolled certifications
-// @route   GET /api/certifications/enrolled
+// @desc    Get all certifications user is enrolled in
+// @route   GET /api/certifications/user/enrolled
 // @access  Private
 export const getEnrolledCertifications = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .populate({
-        path: 'enrolledCertifications',
-        select: 'title description image',
-        populate: {
-          path: 'modules',
-          select: 'title description'
-        }
-      });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
+    const user = await User.findById(req.user.id)
+      .populate('enrolledCertifications');
+    
     res.json(user.enrolledCertifications);
   } catch (error) {
-    console.error('Get enrolled certifications error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
