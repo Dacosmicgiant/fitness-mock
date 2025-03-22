@@ -6,10 +6,10 @@ import {
   TextInput, 
   TouchableOpacity, 
   Image, 
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert, 
+  ActivityIndicator 
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,13 +25,14 @@ const LoginScreen = () => {
   const { loginUser, isLoading, error, clearError } = useAuthStore();
 
   const handleLogin = async () => {
+    console.log('Handle login triggered with:', { email, password });
+    
     // Validate inputs
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
@@ -39,17 +40,24 @@ const LoginScreen = () => {
     }
 
     // Clear any previous errors
+    console.log('Clearing previous errors');
     clearError();
 
-    // Call the login action from our store
+    // Attempt login
+    console.log('Calling loginUser...');
     const result = await loginUser({ email, password });
     
     if (result.success) {
-      // Navigate to home screen
-      router.replace('/');
+      console.log('Login successful, navigating to /(tabs)');
+      router.replace('/(tabs)');
     } else {
+      console.log('Login failed with message:', result.message);
       Alert.alert('Login Failed', result.message);
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert('Forgot Password', 'This feature is not yet implemented. Please contact support.');
   };
 
   return (
@@ -59,7 +67,7 @@ const LoginScreen = () => {
     >
       <View style={styles.logoContainer}>
         <Image 
-          source={require('../../assets/images/logo.png')} 
+          source={require('../../assets/images/logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -91,7 +99,10 @@ const LoginScreen = () => {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
           />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+          <TouchableOpacity 
+            onPress={() => setShowPassword(!showPassword)} 
+            style={styles.eyeIcon}
+          >
             <Ionicons 
               name={showPassword ? "eye-outline" : "eye-off-outline"} 
               size={24} 
@@ -100,12 +111,17 @@ const LoginScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.forgotPassword}>
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        <TouchableOpacity 
+          style={styles.forgotPassword} 
+          onPress={handleForgotPassword}
+        >
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.loginButton}
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -128,18 +144,18 @@ const LoginScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.white 
   },
   logoContainer: {
     alignItems: 'center',
     marginTop: 60,
     marginBottom: 30,
   },
-  logo: {
-    width: 100,
-    height: 100,
+  logo: { 
+    width: 100, 
+    height: 100 
   },
   appName: {
     fontSize: 24,
@@ -152,8 +168,8 @@ const styles = StyleSheet.create({
     color: colors.gray,
     marginTop: 5,
   },
-  formContainer: {
-    paddingHorizontal: 20,
+  formContainer: { 
+    paddingHorizontal: 20 
   },
   title: {
     fontSize: 28,
@@ -197,6 +213,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  loginButtonDisabled: {
+    backgroundColor: colors.gray,
+  },
   loginButtonText: {
     color: colors.white,
     fontSize: 16,
@@ -215,6 +234,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: 'bold',
+  },
+  errorText: {
+    color: colors.red,
+    fontSize: 14,
+    marginBottom: 15,
+    textAlign: 'center',
   },
 });
 

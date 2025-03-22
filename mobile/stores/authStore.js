@@ -150,7 +150,7 @@ const useAuthStore = create((set) => ({
   updateUserProfile: async (userData) => {
     try {
       set({ isLoading: true, error: null });
-      const response = await axios.put(`${API_URL}/profile`, userData);
+      const response = await axios.put(`${API_URL}/users/profile`, userData);
       
       const updatedUser = response.data.user;
       

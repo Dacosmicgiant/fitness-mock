@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import colors from '../constants/colors';
-import useAuthStore from '../stores/authStore';
-import ToggleSwitch from '../components/ToggleSwitch';
+import colors from '../../../constants/colors';
+import useAuthStore from '../../../stores/authStore';
+import ToggleSwitch from '../../../components/ToggleSwitch';
 
 const SettingsScreen = () => {
   const router = useRouter();

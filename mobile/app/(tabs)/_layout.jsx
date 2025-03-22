@@ -1,8 +1,8 @@
-// app/(tabs)/_layout.jsx (New file for tab navigation)
+// app/(tabs)/_layout.jsx
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import colors from '../constants/colors';
+import colors from '../../constants/colors';
 
 export default function TabLayout() {
   return (
@@ -15,11 +15,11 @@ export default function TabLayout() {
           borderTopColor: colors.lightGray,
           borderTopWidth: 1,
         },
-        headerShown: false,
+        headerShown: false, // Hide headers for tab screens
       }}
     >
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
@@ -55,56 +55,5 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-  );
-}
-
-// app/(tabs)/home/_layout.jsx
-import { Stack } from 'expo-router';
-
-export default function HomeLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="subscription" />
-    </Stack>
-  );
-}
-
-// app/(tabs)/certifications/_layout.jsx
-import { Stack } from 'expo-router';
-
-export default function CertificationsLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="certification/[id]" />
-      <Stack.Screen name="module/[id]" />
-      <Stack.Screen name="test-config" />
-      <Stack.Screen name="test" />
-      <Stack.Screen name="results" />
-      <Stack.Screen name="review" />
-    </Stack>
-  );
-}
-
-// app/(tabs)/profile/_layout.jsx
-import { Stack } from 'expo-router';
-
-export default function ProfileLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-    </Stack>
-  );
-}
-
-// app/(tabs)/settings/_layout.jsx
-import { Stack } from 'expo-router';
-
-export default function SettingsLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-    </Stack>
   );
 }

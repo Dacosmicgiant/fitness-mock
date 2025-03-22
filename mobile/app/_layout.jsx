@@ -1,132 +1,102 @@
-// import React, { useEffect, useState } from 'react';
-// import { Stack } from 'expo-router';
-// import { View, ActivityIndicator } from 'react-native';
-// import { StatusBar } from 'expo-status-bar';
-// import { useRouter, useSegments } from 'expo-router';
-// import useAuthStore from '../stores/authStore';
-// import colors from '../constants/colors';
-
-// // Authentication guard component
-// function AuthGuard({ children }) {
-//   const segments = useSegments();
-//   const router = useRouter();
-//   const { isAuthenticated, isLoading, init } = useAuthStore();
-//   const [isInitialized, setIsInitialized] = useState(false);
-
-//   useEffect(() => {
-//     // Initialize auth state from AsyncStorage
-//     const initializeAuth = async () => {
-//       await init();
-//       setIsInitialized(true);
-//     };
-
-//     initializeAuth();
-//   }, [init]);
-
-//   useEffect(() => {
-//     if (!isInitialized) return;
-
-//     const inAuthGroup = segments[0] === '(auth)';
-
-//     if (isAuthenticated && inAuthGroup) {
-//       // Redirect authenticated users away from auth screens
-//       router.replace('/');
-//     } else if (!isAuthenticated && !inAuthGroup) {
-//       // Redirect unauthenticated users to the login page
-//       router.replace('/(auth)/login');
-//     }
-//   }, [isAuthenticated, segments, isInitialized]);
-
-//   // Show loading indicator while checking authentication
-//   if (isLoading || !isInitialized) {
-//     return (
-//       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-//         <ActivityIndicator size="large" color={colors.primary} />
-//       </View>
-//     );
-//   }
-
-//   return children;
-// }
-
-// export default function RootLayout() {
-//   return (
-//     <AuthGuard>
-//       <StatusBar style="auto" />
-//       <Stack screenOptions={{ headerShown: false }}>
-//         <Stack.Screen name="index" options={{ headerShown: false }} />
-//         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-//         <Stack.Screen name="certifications" options={{ headerShown: false }} />
-//         <Stack.Screen name="certification/[id]" options={{ headerShown: false }} />
-//         <Stack.Screen name="module/[id]" options={{ headerShown: false }} />
-//         <Stack.Screen name="test-config" options={{ headerShown: false }} />
-//         <Stack.Screen name="test" options={{ headerShown: false }} />
-//         <Stack.Screen name="results" options={{ headerShown: false }} />
-//         <Stack.Screen name="review" options={{ headerShown: false }} />
-//         <Stack.Screen name="profile" options={{ headerShown: false }} />
-//         <Stack.Screen name="subscription" options={{ headerShown: false }} />
-//         <Stack.Screen name="settings" options={{ headerShown: false }} />
-//       </Stack>
-//     </AuthGuard>
-//   );
-// }
-
-// app/_layout.jsx (Updated with Bottom Tab Navigator)
-import React from 'react';
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect } from 'react';
+import { Text } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import colors from '../constants/colors';
+import useAuthStore from '../stores/authStore';
 
 export default function RootLayout() {
+  const { isAuthenticated, init } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    console.log('Initializing auth state...');
+    init();
+  }, [init]);
+
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      console.log('User not authenticated, forcing redirect to (auth)/login');
+      router.replace('/(auth)/login');
+    }
+  }, [isAuthenticated, router]);
+
+  console.log('isAuthenticated:', isAuthenticated);
+  const initialRoute = isAuthenticated ? '(tabs)' : '(auth)';
+  console.log('Rendering stack with initial route:', initialRoute);
+
+  // If auth state is still loading, render a loading view
+  if (isAuthenticated === null) {
+    console.log('Auth state not yet loaded, rendering loading state');
+    return (
+      <SafeAreaProvider style={{ backgroundColor: colors.white }}>
+        <Text>Loading...</Text>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.gray,
-        tabBarStyle: {
-          backgroundColor: colors.white,
-          borderTopColor: colors.lightGray,
-          borderTopWidth: 1,
-        },
-        headerShown: false, // Hide headers for tab screens
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="certifications"
-        options={{
-          title: 'Certifications',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="school-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <SafeAreaProvider style={{ backgroundColor: colors.white }}>
+      <Stack
+        initialRouteName={initialRoute}
+        screenOptions={{ headerShown: false }}
+      >
+        {/* Auth Group */}
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        
+        {/* Main App Group */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        
+        {/* Modal Screens */}
+        <Stack.Screen 
+          name="subscription" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Subscription'
+          }} 
+        />
+        <Stack.Screen 
+          name="test-config" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Test Configuration'
+          }} 
+        />
+        <Stack.Screen 
+          name="test" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Test'
+          }} 
+        />
+        <Stack.Screen 
+          name="results" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Results'
+          }} 
+        />
+        <Stack.Screen 
+          name="review" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Review'
+          }} 
+        />
+        <Stack.Screen 
+          name="module/[id]" 
+          options={{ 
+            presentation: 'modal',
+            headerShown: true,
+            title: 'Module'
+          }} 
+        />
+      </Stack>
+    </SafeAreaProvider>
   );
 }

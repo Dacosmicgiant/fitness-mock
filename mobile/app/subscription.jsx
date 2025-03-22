@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import colors from '../constants/colors';
 import useAuthStore from '../stores/authStore';
-import SubscriptionCard from '../../components/SubscriptionCard';
+import SubscriptionCard from '../components/SubscriptionCard';
 import PaymentForm from '../components/PaymentForm';
 
 const SubscriptionScreen = () => {

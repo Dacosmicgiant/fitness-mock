@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import colors from '../../constants/colors';
-import CertificationCard from '../../components/CertificationCard';
-import useCertificationStore from '../../stores/certificationStore';
+import colors from '../../../constants/colors';
+import CertificationCard from '../../../components/CertificationCard';
+import useCertificationStore from '../../../stores/certificationStore';
 
 const CertificationListingScreen = () => {
   const router = useRouter();

@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import colors from '../constants/colors';
-import useAuthStore from '../stores/authStore';
-import useCertificationStore from '../stores/certificationStore';
-import UserProfileForm from '../components/UserProfileForm';
-import CertificationCard from '../components/CertificationCard';
-import ProgressBar from '../components/ProgressBar';
-import TestHistoryCard from '../components/TestHistoryCard';
+import colors from '../../../constants/colors';
+import useAuthStore from '../../../stores/authStore';
+import useCertificationStore from '../../../stores/certificationStore';
+import UserProfileForm from '../../../components/UserProfileForm';
+import CertificationCard from '../../../components/CertificationCard';
+import ProgressBar from '../../../components/ProgressBar';
+import TestHistoryCard from '../../../components/TestHistoryCard';
 
 const ProfileScreen = () => {
   const router = useRouter();

@@ -2,4 +2,4 @@
 export const API_URL = 'http://localhost:3000/api';
 
 // If you're using a real device, you'll need to use the computer's local network IP instead
-// export const API_URL = 'http://192.168.1.X:5000/api';
+// export const API_URL = 'http://192.168.56.1:5000/api';

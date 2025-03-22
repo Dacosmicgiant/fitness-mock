@@ -1,63 +1,110 @@
-// stores/certificationStore.js
 import { create } from 'zustand';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import useAuthStore from './authStore';
 
-const API_URL = 'http://your-backend-url/api'; // Replace with your backend URL
+const API_URL = 'http://localhost:3000/api'; // Replace with your actual IP
 
 const useCertificationStore = create((set) => ({
-  certifications: [],
   enrolledCertifications: [],
+  certifications: [],
+  isLoading: false,
+  error: null,
 
   fetchCertifications: async () => {
     try {
-      const response = await axios.get(`${API_URL}/certifications`);
-      set({ certifications: response.data });
+      set({ isLoading: true });
+      const { token } = useAuthStore.getState();
+      if (!token) {
+        console.log('No token available, skipping fetchCertifications');
+        set({ certifications: [], isLoading: false });
+        return;
+      }
+
+      const url = `${API_URL}/certifications`;
+      console.log('Fetching certifications from:', url, 'with token:', token);
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Certifications response:', response.data);
+      set({ certifications: response.data, isLoading: false });
     } catch (error) {
-      console.error('Error fetching certifications:', error);
+      console.error('Fetch certifications error:', error.message, error.response?.data);
+      set({ certifications: [], isLoading: false, error: error.message });
     }
   },
 
   fetchEnrolledCertifications: async () => {
     try {
-      const response = await axios.get(`${API_URL}/certifications/enrolled`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, // Adjust based on your auth setup
+      set({ isLoading: true });
+      const { token } = useAuthStore.getState();
+      if (!token) {
+        console.log('No token available, skipping fetchEnrolledCertifications');
+        set({ enrolledCertifications: [], isLoading: false });
+        return;
+      }
+
+      const url = `${API_URL}/certifications/user/enrolled`;
+      console.log('Fetching enrolled from:', url, 'with token:', token);
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      set({ enrolledCertifications: response.data });
+      console.log('Enrolled certifications response:', response.data);
+      set({ enrolledCertifications: response.data, isLoading: false });
     } catch (error) {
-      console.error('Error fetching enrolled certifications:', error);
+      console.error('Fetch enrolled error:', error.message, error.response?.data);
+      set({ enrolledCertifications: [], isLoading: false, error: error.message });
     }
   },
 
   enrollInCertification: async (certificationId) => {
     try {
-      const response = await axios.post(
-        `${API_URL}/certifications/${certificationId}/enroll`,
-        {},
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
+      set({ isLoading: true });
+      const { token } = useAuthStore.getState();
+      if (!token) throw new Error('No authentication token available');
+
+      const url = `${API_URL}/certifications/${certificationId}/enroll`;
+      console.log('Enrolling at:', url, 'with token:', token);
+      const response = await axios.post(url, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Enrollment response:', response.data);
+
       set((state) => ({
         enrolledCertifications: [...state.enrolledCertifications, response.data],
+        isLoading: false,
       }));
     } catch (error) {
-      console.error('Error enrolling in certification:', error);
+      console.error('Error enrolling in certification:', error.message, error.response?.data);
+      set({ isLoading: false, error: error.message });
       throw error;
     }
   },
 
-    // stores/certificationStore.js
-    // Add this method if needed
   fetchModule: async (moduleId) => {
     try {
-      const response = await axios.get(`${API_URL}/modules/${moduleId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      set({ isLoading: true });
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        console.log('No token available, skipping fetchModule');
+        set({ isLoading: false });
+        return;
+      }
+
+      const url = `${API_URL}/modules/${moduleId}`;
+      console.log('Fetching module from:', url, 'with token:', token);
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('Module response:', response.data);
+      set({ isLoading: false });
       return response.data;
     } catch (error) {
-      console.error('Error fetching module:', error);
+      console.error('Error fetching module:', error.message, error.response?.data);
+      set({ isLoading: false, error: error.message });
       throw error;
     }
   },
-
 }));
 
 export default useCertificationStore;

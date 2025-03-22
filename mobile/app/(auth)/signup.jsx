@@ -1,3 +1,4 @@
+// mobile/app/(auth)/signup.jsx
 import React, { useState } from 'react';
 import { 
   StyleSheet, 
@@ -24,7 +25,7 @@ const SignupScreen = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const router = useRouter();
   const { registerUser, isLoading, error, clearError } = useAuthStore();
 
@@ -59,7 +60,7 @@ const SignupScreen = () => {
 
     // Call the register action from our store
     const result = await registerUser({ name, email, password });
-    
+
     if (result.success) {
       Alert.alert(
         'Registration Successful',

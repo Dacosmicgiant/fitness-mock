@@ -9,10 +9,10 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import colors from '../constants/colors';
-import ModuleCard from '../components/ModuleCard';
-import TestCard from '../components/TestCard';
-import useCertificationStore from '../stores/certificationStore';
+import colors from '../../../constants/colors';
+import ModuleCard from '../../../components/ModuleCard';
+import TestCard from '../../../components/TestCard';
+import useCertificationStore from '../../../stores/certificationStore';
 
 const CertificationDetailScreen = () => {
   const router = useRouter();
